@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+ - Support DP-mode multi-channel LED drivers by exposing one HomeKit light per numbered channel while keeping the global master switch as a device-level control rather than a separate accessory.
+
 ## [2.7.1] - (2026.10.20)
 
 ### Added

@@ -149,7 +149,13 @@ To determine the data center, follow these steps:
 Then manually specify endpoint in the plugin config.
 
 
-#### What is "Standard DP" and "Non-standard DP"?
+#### Multi-channel light drivers
+
+DP-mode multi-channel LED drivers that expose repeated numbered datapoints such as `switch_1`, `bright_value_2`, and `temp_value_3` are now exposed as one HomeKit light per channel. The global/master DP such as `switch_led` is treated as a device-level control and is not exposed as a separate light accessory.
+
+This is especially useful for Sensio-style 3-channel, 4-channel, or 5-channel CCT drivers.
+
+### What is "Standard DP" and "Non-standard DP"?
 
 <!-- If your device is working properly, you don't need to know this. -->
 

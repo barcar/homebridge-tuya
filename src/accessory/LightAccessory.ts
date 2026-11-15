@@ -20,6 +20,14 @@ export default class LightAccessory extends BaseAccessory {
     return [SCHEMA_CODE.ON];
   }
 
+  checkRequirements() {
+    if (this.device.schema.some(schema => /^(switch(?:_led)?|bright_value|temp_value)(?:_v|_)?\d+$/.test(schema.code))) {
+      return true;
+    }
+
+    return super.checkRequirements();
+  }
+
   private getMultiChannelLightConfigs() {
     const channelMap = new Map<number, {
       on?: ReturnType<BaseAccessory['getSchema']>;
@@ -66,8 +74,12 @@ export default class LightAccessory extends BaseAccessory {
         this.accessory.removeService(oldService);
       }
 
+      const workModeSchema = this.device.schema.find(
+        schema => schema.code === 'work_mode' && this.getStatus(schema.code),
+      );
+
       for (const config of multiChannelConfigs) {
-        const name = `${this.device.name} ${config.index}`;
+        const name = `${this.device.name} Channel ${config.index}`;
         const service = this.accessory.getService(`light-channel-${config.index}`)
           || this.accessory.addService(this.Service.Lightbulb, name, `light-channel-${config.index}`);
 
@@ -78,7 +90,7 @@ export default class LightAccessory extends BaseAccessory {
           config.bright,
           config.temp,
           undefined,
-          this.getSchema(...SCHEMA_CODE.WORK_MODE),
+          workModeSchema,
         );
       }
     } else {

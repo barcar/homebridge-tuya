@@ -28,6 +28,10 @@ export default class LightAccessory extends BaseAccessory {
     return super.checkRequirements();
   }
 
+  private getChannelServiceName(index: number) {
+    return `${this.device.name} Channel ${index}`;
+  }
+
   private getMultiChannelLightConfigs() {
     const channelMap = new Map<number, {
       on?: ReturnType<BaseAccessory['getSchema']>;
@@ -74,14 +78,21 @@ export default class LightAccessory extends BaseAccessory {
         this.accessory.removeService(oldService);
       }
 
+      this.accessory.services
+        .filter(service => service.subtype?.startsWith('light-channel-'))
+        .forEach(service => {
+          this.accessory.removeService(service);
+        });
+
       const workModeSchema = this.device.schema.find(
         schema => schema.code === 'work_mode' && this.getStatus(schema.code),
       );
 
       for (const config of multiChannelConfigs) {
-        const name = `${this.device.name} Channel ${config.index}`;
-        const service = this.accessory.getService(`light-channel-${config.index}`)
-          || this.accessory.addService(this.Service.Lightbulb, name, `light-channel-${config.index}`);
+        const name = this.getChannelServiceName(config.index);
+        const subtype = `light-channel-${config.index}`;
+        const service = this.accessory.getService(subtype)
+          || this.accessory.addService(this.Service.Lightbulb, name, subtype);
 
         configureLight(
           this,

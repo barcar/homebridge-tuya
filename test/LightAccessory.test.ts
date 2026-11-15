@@ -201,4 +201,65 @@ describe('LightAccessory', () => {
     const accessory = new LightAccessory(mockPlatform, mockAccessory as unknown as PlatformAccessory);
     expect(accessory.checkRequirements()).toBe(true);
   });
+
+  test('creates one light service per numbered channel for larger DP-mode channel counts', () => {
+    const device = new TuyaDevice({
+      id: 'test-device-id',
+      uuid: 'uuid',
+      name: 'Kitchen 5-channel driver',
+      online: true,
+      product_id: 'abc',
+      product_name: '5 channel CCT Driver',
+      model: '5 channel CCT Driver',
+      category: 'dj',
+      schema: [
+        { code: 'switch_1', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_1', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_1', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+        { code: 'switch_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+        { code: 'switch_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+        { code: 'switch_4', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_4', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_4', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+        { code: 'switch_5', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_5', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_5', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+      ],
+      status: [
+        { code: 'switch_1', value: true },
+        { code: 'bright_value_1', value: 100 },
+        { code: 'temp_value_1', value: 200 },
+        { code: 'switch_2', value: false },
+        { code: 'bright_value_2', value: 150 },
+        { code: 'temp_value_2', value: 250 },
+        { code: 'switch_3', value: true },
+        { code: 'bright_value_3', value: 200 },
+        { code: 'temp_value_3', value: 300 },
+        { code: 'switch_4', value: true },
+        { code: 'bright_value_4', value: 250 },
+        { code: 'temp_value_4', value: 350 },
+        { code: 'switch_5', value: true },
+        { code: 'bright_value_5', value: 300 },
+        { code: 'temp_value_5', value: 400 },
+      ],
+    } as Partial<TuyaDevice> as TuyaDevice);
+
+    mockDeviceManager.getDevice.mockReturnValue(device);
+
+    const accessory = new LightAccessory(mockPlatform, mockAccessory as unknown as PlatformAccessory);
+    accessory.configureServices();
+
+    expect(mockConfigureLight).toHaveBeenCalledTimes(5);
+    expect((mockConfigureLight.mock.calls as any[]).map((call: any[]) => call[1]?.displayName || call[1]?.UUID)).toEqual([
+      'Kitchen 5-channel driver Channel 1',
+      'Kitchen 5-channel driver Channel 2',
+      'Kitchen 5-channel driver Channel 3',
+      'Kitchen 5-channel driver Channel 4',
+      'Kitchen 5-channel driver Channel 5',
+    ]);
+  });
 });

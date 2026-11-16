@@ -33,6 +33,11 @@ export default class LightAccessory extends BaseAccessory {
   }
 
   private getMultiChannelLightConfigs() {
+    const config = this.platform.getDeviceConfig(this.device);
+    if (config?.splitMultiChannelLights === false) {
+      return [];
+    }
+
     const channelMap = new Map<number, {
       on?: ReturnType<BaseAccessory['getSchema']>;
       bright?: ReturnType<BaseAccessory['getSchema']>;

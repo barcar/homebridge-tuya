@@ -202,6 +202,50 @@ describe('LightAccessory', () => {
     expect(accessory.checkRequirements()).toBe(true);
   });
 
+  test('keeps a single light when splitMultiChannelLights is disabled for that device', () => {
+    const device = new TuyaDevice({
+      id: 'test-device-id',
+      uuid: 'uuid',
+      name: 'Kitchen 3-channel driver',
+      online: true,
+      product_id: 'abc',
+      product_name: '3 channel CCT Driver',
+      model: '3 channel CCT Driver',
+      category: 'dj',
+      schema: [
+        { code: 'switch_1', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_1', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_1', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+        { code: 'switch_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+        { code: 'switch_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+      ],
+      status: [
+        { code: 'switch_1', value: true },
+        { code: 'bright_value_1', value: 200 },
+        { code: 'temp_value_1', value: 300 },
+        { code: 'switch_2', value: true },
+        { code: 'bright_value_2', value: 250 },
+        { code: 'temp_value_2', value: 350 },
+        { code: 'switch_3', value: true },
+        { code: 'bright_value_3', value: 300 },
+        { code: 'temp_value_3', value: 400 },
+      ],
+    } as Partial<TuyaDevice> as TuyaDevice);
+
+    mockPlatform.getDeviceConfig.mockReturnValue({ id: 'test-device-id', splitMultiChannelLights: false });
+    mockDeviceManager.getDevice.mockReturnValue(device);
+
+    const accessory = new LightAccessory(mockPlatform, mockAccessory as unknown as PlatformAccessory);
+    accessory.configureServices();
+
+    expect(mockConfigureLight).toHaveBeenCalledTimes(1);
+    expect((mockConfigureLight.mock.calls as any[])[0][1].displayName).not.toContain('Channel');
+  });
+
   test('creates one light service per numbered channel for larger DP-mode channel counts', () => {
     const device = new TuyaDevice({
       id: 'test-device-id',

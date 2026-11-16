@@ -20,7 +20,7 @@
   ],
   "engines": {
     "homebridge": "^1.8.0 || ^2.0.0",
-    "node": "^20 || ^22 || ^24 || ^25"
+    "node": "^22 || ^24 || ^25 || ^26"
   },
   "peerDependencies": {
     "homebridge": "^1.8.0 || ^2.0.0"

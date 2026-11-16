@@ -168,6 +168,58 @@ describe('LightAccessory', () => {
     expect((mockConfigureLight.mock.calls as any[])[2][2].code).toBe('switch_3');
   });
 
+  test('maps switch_led as a master while channel 1 uses switch_1 and the unnumbered bright/temp values', () => {
+    const device = new TuyaDevice({
+      id: 'test-device-id',
+      uuid: 'uuid',
+      name: 'Kitchen 3-channel driver',
+      online: true,
+      product_id: 'abc',
+      product_name: '3 channel CCT Driver',
+      model: '3 channel CCT Driver',
+      category: 'dj',
+      schema: [
+        { code: 'switch_led', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'switch_1', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+        { code: 'switch_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+        { code: 'switch_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+      ],
+      status: [
+        { code: 'switch_led', value: true },
+        { code: 'switch_1', value: true },
+        { code: 'bright_value', value: 220 },
+        { code: 'temp_value', value: 320 },
+        { code: 'switch_2', value: false },
+        { code: 'bright_value_2', value: 180 },
+        { code: 'temp_value_2', value: 280 },
+        { code: 'switch_3', value: true },
+        { code: 'bright_value_3', value: 300 },
+        { code: 'temp_value_3', value: 400 },
+      ],
+    } as Partial<TuyaDevice> as TuyaDevice);
+
+    mockDeviceManager.getDevice.mockReturnValue(device);
+
+    const accessory = new LightAccessory(mockPlatform, mockAccessory as unknown as PlatformAccessory);
+    accessory.configureServices();
+
+    expect(mockConfigureLight).toHaveBeenCalledTimes(3);
+    expect((mockConfigureLight.mock.calls as any[]).map((call: any[]) => call[1]?.displayName || call[1]?.UUID)).toEqual([
+      'Kitchen 3-channel driver Channel 1',
+      'Kitchen 3-channel driver Channel 2',
+      'Kitchen 3-channel driver Channel 3',
+    ]);
+    expect((mockConfigureLight.mock.calls as any[])[0][2].code).toBe('switch_1');
+    expect((mockConfigureLight.mock.calls as any[])[0][3].code).toBe('bright_value');
+    expect((mockConfigureLight.mock.calls as any[])[0][4].code).toBe('temp_value');
+  });
+
   test('accepts DP mode channel-only lights without a master switch_led', () => {
     const device = new TuyaDevice({
       id: 'test-device-id',

@@ -45,25 +45,42 @@ export default class LightAccessory extends BaseAccessory {
     }>();
 
     for (const schema of this.device.schema) {
-      const match = schema.code.match(/^(switch(?:_led)?|bright_value|temp_value)(?:_v|_)?(\d+)$/);
-      if (!match) {
+      const numberedMatch = schema.code.match(/^(switch(?:_led)?|bright_value|temp_value)(?:_v|_)?(\d+)$/);
+      if (numberedMatch) {
+        const [, kind, rawIndex] = numberedMatch;
+        const index = Number(rawIndex);
+        const channelConfig = channelMap.get(index) ?? {};
+        if (kind === 'switch' || kind === 'switch_led') {
+          channelConfig.on = schema;
+        } else if (kind === 'bright_value') {
+          channelConfig.bright = schema;
+        } else if (kind === 'temp_value') {
+          channelConfig.temp = schema;
+        }
+        channelMap.set(index, channelConfig);
         continue;
       }
 
-      const [, kind, rawIndex] = match;
-      const index = Number(rawIndex);
-      const config = channelMap.get(index) ?? {};
-      if (kind === 'switch' || kind === 'switch_led') {
-        config.on = schema;
-      } else if (kind === 'bright_value') {
-        config.bright = schema;
-      } else if (kind === 'temp_value') {
-        config.temp = schema;
+      if (schema.code === 'switch_1') {
+        const channelConfig = channelMap.get(1) ?? {};
+        channelConfig.on = schema;
+        channelMap.set(1, channelConfig);
+        continue;
       }
-      channelMap.set(index, config);
+
+      if (schema.code === 'bright_value' || schema.code === 'temp_value') {
+        const channelConfig = channelMap.get(1) ?? {};
+        if (schema.code === 'bright_value') {
+          channelConfig.bright = schema;
+        }
+        if (schema.code === 'temp_value') {
+          channelConfig.temp = schema;
+        }
+        channelMap.set(1, channelConfig);
+      }
     }
 
-    return [...channelMap.entries()]
+    const mappedConfigs = [...channelMap.entries()]
       .filter(([, config]) => config.on || config.bright || config.temp)
       .sort((a, b) => a[0] - b[0])
       .map(([index, config]) => ({
@@ -72,6 +89,17 @@ export default class LightAccessory extends BaseAccessory {
         bright: config.bright,
         temp: config.temp,
       }));
+
+    if (mappedConfigs.length > 0) {
+      this.log.debug('Multi-channel light mapping: %o', mappedConfigs.map(config => ({
+        index: config.index,
+        on: config.on?.code,
+        bright: config.bright?.code,
+        temp: config.temp?.code,
+      })));
+    }
+
+    return mappedConfigs;
   }
 
   configureServices() {
@@ -79,6 +107,14 @@ export default class LightAccessory extends BaseAccessory {
     if (multiChannelConfigs.length > 0) {
       const oldService = this.accessory.getService(this.Service.Lightbulb);
       if (oldService && oldService.subtype === undefined) {
+        this.platform.log.warn('Detected stale cached single-light accessory for a multi-channel DP device. Remove the cached accessory and restart Homebridge.');
+        this.platform.log.warn('Legacy service UUID: %s', oldService.UUID);
+        this.platform.log.warn('Multi-channel mapping: %o', multiChannelConfigs.map(config => ({
+          index: config.index,
+          on: config.on?.code,
+          bright: config.bright?.code,
+          temp: config.temp?.code,
+        })));
         this.platform.log.warn('Remove old single light service:', oldService.UUID);
         this.accessory.removeService(oldService);
       }

@@ -21,6 +21,7 @@ Before configuring, you may need to:
 - `unbridged` - **optional**: Unbridge accessories. Defaults to `false`.
 - `adaptiveLighting` - **optional**: Adaptive Lighting. Defaults to `false`. Not all light device support this feature, please use it on demand.
 - `addExtraFeaturesAutomatically` - **optional**: Automatically expose supported read/write datapoints that are not used by the standard accessory as extra HomeKit services. Boolean datapoints are exposed as switches, Enum datapoints as switches for their available values, and Integer datapoints as sliders. Defaults to `false`.
+- `splitMultiChannelLightsAsAccessories` - **optional**: Create a separate HomeKit accessory for each numbered channel and a standalone master switch accessory for the driver when the device exposes a global master DP such as `switch_led`. Defaults to `false`.
 - `garageDoorUseContactSensorForState` - **optional**: For garage door controllers. When `true`, `CurrentDoorState` and `TargetDoorState` reads use `doorcontact_state` only, while set commands still use `switch_1`. Defaults to `false`.
 - `schema` - **optional**: An array of schema overriding config objects, used for describing datapoint (DP). When your device has non-standard DP, you need to transform them manually with configuration. Each element in the schema array is described as follows:
   - `code` - **required**: DP code.
@@ -112,6 +113,22 @@ Some devices expose manufacturer-specific datapoints that are not included in Tu
 ```
 
 Boolean datapoints are added as switches, Enum datapoints are added as switches for their available values, and Integer datapoints are added as sliders. The option applies only to the device specified by `id` and leaves the standard accessory controls unchanged. Raw datapoints require an `extraRawSwitch` definition because their individual bit or byte meanings cannot be inferred automatically.
+
+### Split multi-channel light drivers
+
+By default, the plugin follows the upstream behavior and keeps a multi-channel light driver as a single HomeKit light accessory. If you want each numbered channel exposed as a separate HomeKit accessory, plus a standalone master switch for the global driver control, enable `splitMultiChannelLightsAsAccessories` for that device:
+
+```js
+{
+  "options": {
+    // ...
+    "deviceOverrides": [{
+      "id": "{device_id}",
+      "splitMultiChannelLightsAsAccessories": true
+    }]
+  }
+}
+```
 
 ### Use garage door contact sensor for state
 

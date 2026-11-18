@@ -148,6 +148,14 @@
                                         "functionBody": "return (model.options && model.options.deviceOverrides);"
                                     }
                                 },
+                                "splitMultiChannelLightsAsAccessories": {
+                                    "title": "Split Multi-Channel Lights As Accessories",
+                                    "description": "Create one accessory per numbered channel plus a separate master switch accessory for the driver.",
+                                    "type": "boolean",
+                                    "condition": {
+                                        "functionBody": "return (model.options && model.options.deviceOverrides);"
+                                    }
+                                },
                                 "garageDoorUseContactSensorForState": {
                                     "title": "Use Contact Sensor For Garage Door State",
                                     "description": "For garage door controllers only. Derive CurrentDoorState and TargetDoorState reads from doorcontact_state instead of switch_1.",
@@ -562,6 +570,9 @@
                                 },
                                 {
                                     "key": "options.deviceOverrides[].addExtraFeaturesAutomatically"
+                                },
+                                {
+                                    "key": "options.deviceOverrides[].splitMultiChannelLightsAsAccessories"
                                 },
                                 {
                                     "key": "options.deviceOverrides[].garageDoorUseContactSensorForState"

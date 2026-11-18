@@ -438,9 +438,83 @@ export class TuyaPlatform implements DynamicPlatformPlugin {
     return devices;
   }
 
+  private createSeparatedMultiChannelAccessories(device: TuyaDevice) {
+    const deviceConfig = this.getDeviceConfig(device);
+    if (!deviceConfig?.splitMultiChannelLightsAsAccessories) {
+      return false;
+    }
+
+    const channelMap = new Map<number, { on?: string; bright?: string; temp?: string }>();
+    for (const schema of device.schema) {
+      const numberedMatch = schema.code.match(/^(switch(?:_led)?|bright_value|temp_value)(?:_v|_)?(\d+)$/);
+      if (numberedMatch) {
+        const [, kind, rawIndex] = numberedMatch;
+        const index = Number(rawIndex);
+        const config = channelMap.get(index) ?? {};
+        if (kind === 'switch' || kind === 'switch_led') {
+          config.on = schema.code;
+        } else if (kind === 'bright_value') {
+          config.bright = schema.code;
+        } else if (kind === 'temp_value') {
+          config.temp = schema.code;
+        }
+        channelMap.set(index, config);
+        continue;
+      }
+
+      if (schema.code === 'switch_1') {
+        const config = channelMap.get(1) ?? {};
+        config.on = schema.code;
+        channelMap.set(1, config);
+      }
+
+      if (schema.code === 'bright_value' || schema.code === 'temp_value') {
+        const config = channelMap.get(1) ?? {};
+        if (schema.code === 'bright_value') {
+          config.bright = schema.code;
+        }
+        if (schema.code === 'temp_value') {
+          config.temp = schema.code;
+        }
+        channelMap.set(1, config);
+      }
+    }
+
+    const channelIndexes = [...channelMap.keys()].sort((a, b) => a - b);
+    if (channelIndexes.length === 0) {
+      return false;
+    }
+
+    const masterUuid = this.api.hap.uuid.generate(`${device.id}:master-switch`);
+    const masterAccessory = new this.api.platformAccessory(`${sanitizeName(device.name) ?? device.name} Master`, masterUuid);
+    masterAccessory.context.deviceID = device.id;
+    masterAccessory.context.channelIndex = 'master';
+
+    const masterHandler = AccessoryFactory.createAccessory(this, masterAccessory, device);
+    this.accessoryHandlers.push(masterHandler);
+    this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [masterAccessory]);
+
+    for (const index of channelIndexes) {
+      const uuid = this.api.hap.uuid.generate(`${device.id}:channel:${index}`);
+      const channelAccessory = new this.api.platformAccessory(`${sanitizeName(device.name) ?? device.name} Channel ${index}`, uuid);
+      channelAccessory.context.deviceID = device.id;
+      channelAccessory.context.channelIndex = index;
+
+      const handler = AccessoryFactory.createAccessory(this, channelAccessory, device);
+      this.accessoryHandlers.push(handler);
+      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [channelAccessory]);
+    }
+
+    return true;
+  }
+
   addAccessory(device: TuyaDevice) {
     if (device.category === 'hidden') {
       this.log.info('Hide Accessory:', device.name);
+      return;
+    }
+
+    if (this.createSeparatedMultiChannelAccessories(device)) {
       return;
     }
 
@@ -490,42 +564,44 @@ export class TuyaPlatform implements DynamicPlatformPlugin {
   }
 
   updateAccessoryInfo(device: TuyaDevice, info) {
-    const handler = this.getAccessoryHandler(device.id);
-    if (!handler) {
+    const handlers = this.getAccessoryHandlers(device.id);
+    if (handlers.length === 0) {
       return;
     }
 
     // this.log.debug('onDeviceInfoUpdate devId = %s, status = %o}', device.id, info);
-    handler.onDeviceInfoUpdate(info);
+    handlers.forEach(handler => handler.onDeviceInfoUpdate(info));
   }
 
   updateAccessoryStatus(device: TuyaDevice, status: TuyaDeviceStatus[]) {
-    const handler = this.getAccessoryHandler(device.id);
-    if (!handler) {
+    const handlers = this.getAccessoryHandlers(device.id);
+    if (handlers.length === 0) {
       return;
     }
 
     // this.log.debug('onDeviceStatusUpdate devId = %s, status = %o}', device.id, status);
-    handler.onDeviceStatusUpdate(status);
+    handlers.forEach(handler => handler.onDeviceStatusUpdate(status));
   }
 
   removeAccessory(deviceID: string) {
-    const handler = this.getAccessoryHandler(deviceID);
-    if (!handler) {
+    const handlers = this.getAccessoryHandlers(deviceID);
+    if (handlers.length === 0) {
       return;
     }
 
-    const index = this.accessoryHandlers.indexOf(handler);
-    if (index >= 0) {
-      this.accessoryHandlers.splice(index, 1);
-    }
+    handlers.forEach(handler => {
+      const index = this.accessoryHandlers.indexOf(handler);
+      if (index >= 0) {
+        this.accessoryHandlers.splice(index, 1);
+      }
 
-    this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [handler.accessory]);
-    this.log.info('Removing existing accessory from cache:', handler.accessory.displayName);
+      this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [handler.accessory]);
+      this.log.info('Removing existing accessory from cache:', handler.accessory.displayName);
+    });
   }
 
-  getAccessoryHandler(deviceID: string) {
-    return this.accessoryHandlers.find(handler => handler.device.id === deviceID);
+  getAccessoryHandlers(deviceID: string) {
+    return this.accessoryHandlers.filter(handler => handler.device.id === deviceID);
   }
 
   createWeatherDevice(device: TuyaDevice, result: { home_id: string; name: string }[]): TuyaDevice {

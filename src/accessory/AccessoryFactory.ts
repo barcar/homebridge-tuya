@@ -63,8 +63,14 @@ export default class AccessoryFactory {
 
     let handler: BaseAccessory | undefined;
 
-    handler = resolveAccessoryByProductID(platform, accessory, device.product_id)
-      || resolveAccessoryByCategory(platform, accessory, device.category);
+    if (accessory.context.channelIndex === 'master') {
+      handler = new SwitchAccessory(platform, accessory);
+    } else if (accessory.context.channelIndex !== undefined) {
+      handler = new LightAccessory(platform, accessory);
+    } else {
+      handler = resolveAccessoryByProductID(platform, accessory, device.product_id)
+        || resolveAccessoryByCategory(platform, accessory, device.category);
+    }
 
     // basically use should set the handler at the switch-case
     if (!handler) {

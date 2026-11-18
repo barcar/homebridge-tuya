@@ -21,7 +21,7 @@ export interface TuyaPlatformDeviceConfig {
   adaptiveLighting?: boolean;
   addExtraFeaturesAutomatically?: boolean;
   garageDoorUseContactSensorForState?: boolean;
-  splitMultiChannelLights?: boolean;
+  splitMultiChannelLightsAsAccessories?: boolean;
 }
 
 export interface TuyaPlatformServiceInformationConfig {

@@ -8,7 +8,7 @@ import { configureCurrentRelativeHumidity } from './characteristic/CurrentRelati
 import { sanitizeName } from '../util/util';
 
 const SCHEMA_CODE = {
-  ON: ['switch', 'switch_1'], // switch_2, switch_3, switch_4, ..., switch_usb1, switch_usb2, switch_usb3, ..., switch_backlight
+  ON: ['switch_led', 'switch', 'switch_1'], // switch_2, switch_3, switch_4, ..., switch_usb1, switch_usb2, switch_usb3, ..., switch_backlight
   CURRENT: ['cur_current'],
   POWER: ['cur_power'],
   VOLTAGE: ['cur_voltage'],
@@ -36,8 +36,18 @@ export default class SwitchAccessory extends BaseAccessory {
       (schema) => schema.code.startsWith('switch') && schema.type === TuyaDeviceSchemaType.Boolean,
     );
 
-    schemata.forEach((schema) => {
-      const name = (schemata.length === 1) ? this.device.name : schema.code;
+    const masterSwitch = this.accessory.context.channelIndex === 'master'
+      ? schemata.find(schema => schema.code === 'switch_led' || schema.code === 'switch')
+      : undefined;
+
+    const channelFilteredSchemata = this.accessory.context.channelIndex === 'master'
+      ? (masterSwitch ? [masterSwitch] : [])
+      : schemata.filter(schema => !/^switch_\d+$/.test(schema.code));
+
+    const finalSchemata = channelFilteredSchemata.length > 0 ? channelFilteredSchemata : schemata;
+
+    finalSchemata.forEach((schema) => {
+      const name = (finalSchemata.length === 1) ? this.device.name : schema.code;
       this.configureSwitch(schema, name);
     });
 

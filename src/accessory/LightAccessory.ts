@@ -34,7 +34,13 @@ export default class LightAccessory extends BaseAccessory {
 
   private getMultiChannelLightConfigs() {
     const config = this.platform.getDeviceConfig(this.device);
-    if (config?.splitMultiChannelLights === false) {
+    const requestedChannelIndex = this.accessory.context.channelIndex;
+
+    if (config?.splitMultiChannelLightsAsAccessories !== true) {
+      return [];
+    }
+
+    if (requestedChannelIndex === undefined) {
       return [];
     }
 
@@ -90,8 +96,12 @@ export default class LightAccessory extends BaseAccessory {
         temp: config.temp,
       }));
 
-    if (mappedConfigs.length > 0) {
-      this.log.debug('Multi-channel light mapping: %o', mappedConfigs.map(config => ({
+    const filteredConfigs = requestedChannelIndex !== undefined
+      ? mappedConfigs.filter(config => config.index === Number(requestedChannelIndex))
+      : mappedConfigs;
+
+    if (filteredConfigs.length > 0) {
+      this.log.debug('Multi-channel light mapping: %o', filteredConfigs.map(config => ({
         index: config.index,
         on: config.on?.code,
         bright: config.bright?.code,
@@ -99,7 +109,7 @@ export default class LightAccessory extends BaseAccessory {
       })));
     }
 
-    return mappedConfigs;
+    return filteredConfigs;
   }
 
   configureServices() {

@@ -151,11 +151,22 @@ Then manually specify endpoint in the plugin config.
 
 #### Multi-channel light drivers
 
-DP-mode multi-channel LED drivers that expose repeated numbered datapoints such as `switch_1`, `bright_value_2`, and `temp_value_3` are now exposed as one HomeKit light per channel. The global/master DP such as `switch_led` is treated as a device-level control and is not exposed as a separate light accessory.
+By default, the plugin keeps the upstream single-light behavior for DP-mode multi-channel drivers. If you want each numbered channel exposed as a separate accessory and a standalone master switch for the global driver control, enable `splitMultiChannelLightsAsAccessories` for that device. This is useful for Sensio-style 3-channel, 4-channel, or 5-channel CCT drivers such as the Sensio Titan Smart Kinetic Driver CCT.
 
 For Sensio drivers, this requires setting the device to "DP Instruction" mode in Tuya. The standard `dj`/light mapping does not correctly label individual channels, so the numbered DP layout must be used instead.
 
-This is especially useful for Sensio-style 3-channel, 4-channel, or 5-channel CCT drivers such as the Sensio Titan Smart Kinetic Driver CCT.
+Example:
+
+```json
+{
+  "options": {
+    "deviceOverrides": [{
+      "id": "{device_id}",
+      "splitMultiChannelLightsAsAccessories": true
+    }]
+  }
+}
+```
 
 ### What is "Standard DP" and "Non-standard DP"?
 

@@ -2,8 +2,8 @@
 
 ## [Unreleased]
 
-### Added
- - Support DP-mode multi-channel LED drivers by exposing one HomeKit light per numbered channel while keeping the global master switch as a device-level control rather than a separate accessory.
+### Changed
+ - Restore the upstream default for DP-mode multi-channel LED drivers: the plugin keeps the standard single-light accessory unless you explicitly opt in with `splitMultiChannelLightsAsAccessories`, which creates a dedicated accessory per channel plus a standalone master switch for the driver.
 
 ## [2.7.1] - (2026.10.20)
 

@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { API, PlatformAccessory } from 'homebridge';
 import LightAccessory from '../src/accessory/LightAccessory';
+import SwitchAccessory from '../src/accessory/SwitchAccessory';
 import TuyaDevice, { TuyaDeviceSchemaMode, TuyaDeviceSchemaType } from '../src/device/TuyaDevice';
 import { TuyaPlatform } from '../src/platform';
 
@@ -115,7 +116,7 @@ describe('LightAccessory', () => {
     } as unknown as PlatformAccessory;
   });
 
-  test('creates one light service per numbered channel when the device uses DP mode channel schemas', () => {
+  test('keeps the default light as a single service unless channel splitting is explicitly enabled', () => {
     const device = new TuyaDevice({
       id: 'test-device-id',
       uuid: 'uuid',
@@ -157,15 +158,57 @@ describe('LightAccessory', () => {
     const accessory = new LightAccessory(mockPlatform, mockAccessory as unknown as PlatformAccessory);
     accessory.configureServices();
 
-    expect(mockConfigureLight).toHaveBeenCalledTimes(3);
-    expect((mockConfigureLight.mock.calls as any[]).map((call: any[]) => call[1]?.displayName || call[1]?.UUID)).toEqual([
-      'Kitchen 3-channel driver Channel 1',
-      'Kitchen 3-channel driver Channel 2',
-      'Kitchen 3-channel driver Channel 3',
-    ]);
-    expect((mockConfigureLight.mock.calls as any[])[0][2].code).toBe('switch_1');
-    expect((mockConfigureLight.mock.calls as any[])[1][2].code).toBe('switch_2');
-    expect((mockConfigureLight.mock.calls as any[])[2][2].code).toBe('switch_3');
+    expect(mockConfigureLight).toHaveBeenCalledTimes(1);
+    expect((mockConfigureLight.mock.calls as any[])[0][1].displayName).not.toContain('Channel');
+  });
+
+  test('uses the selected channel accessory when splitMultiChannelLightsAsAccessories is enabled', () => {
+    const device = new TuyaDevice({
+      id: 'test-device-id',
+      uuid: 'uuid',
+      name: 'Kitchen 3-channel driver',
+      online: true,
+      product_id: 'abc',
+      product_name: '3 channel CCT Driver',
+      model: '3 channel CCT Driver',
+      category: 'dj',
+      schema: [
+        { code: 'switch_led', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'work_mode', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Enum, property: { range: ['white', 'colour'] } },
+        { code: 'switch_1', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_1', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_1', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+        { code: 'switch_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+        { code: 'switch_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+      ],
+      status: [
+        { code: 'switch_led', value: true },
+        { code: 'switch_1', value: true },
+        { code: 'bright_value_1', value: 200 },
+        { code: 'temp_value_1', value: 300 },
+        { code: 'switch_2', value: true },
+        { code: 'bright_value_2', value: 250 },
+        { code: 'temp_value_2', value: 350 },
+        { code: 'switch_3', value: true },
+        { code: 'bright_value_3', value: 300 },
+        { code: 'temp_value_3', value: 400 },
+      ],
+    } as Partial<TuyaDevice> as TuyaDevice);
+
+    mockPlatform.getDeviceConfig.mockReturnValue({ id: 'test-device-id', splitMultiChannelLightsAsAccessories: true });
+    mockDeviceManager.getDevice.mockReturnValue(device);
+
+    mockAccessory.context.channelIndex = 2;
+    const accessory = new LightAccessory(mockPlatform, mockAccessory as unknown as PlatformAccessory);
+    accessory.configureServices();
+
+    expect(mockConfigureLight).toHaveBeenCalledTimes(1);
+    expect((mockConfigureLight.mock.calls as any[])[0][1].displayName).toBe('Kitchen 3-channel driver Channel 2');
+    expect((mockConfigureLight.mock.calls as any[])[0][2].code).toBe('switch_2');
   });
 
   test('maps switch_led as a master while channel 1 uses switch_1 and the unnumbered bright/temp values', () => {
@@ -204,17 +247,15 @@ describe('LightAccessory', () => {
       ],
     } as Partial<TuyaDevice> as TuyaDevice);
 
+    mockPlatform.getDeviceConfig.mockReturnValue({ id: 'test-device-id', splitMultiChannelLightsAsAccessories: true });
     mockDeviceManager.getDevice.mockReturnValue(device);
 
+    mockAccessory.context.channelIndex = 1;
     const accessory = new LightAccessory(mockPlatform, mockAccessory as unknown as PlatformAccessory);
     accessory.configureServices();
 
-    expect(mockConfigureLight).toHaveBeenCalledTimes(3);
-    expect((mockConfigureLight.mock.calls as any[]).map((call: any[]) => call[1]?.displayName || call[1]?.UUID)).toEqual([
-      'Kitchen 3-channel driver Channel 1',
-      'Kitchen 3-channel driver Channel 2',
-      'Kitchen 3-channel driver Channel 3',
-    ]);
+    expect(mockConfigureLight).toHaveBeenCalledTimes(1);
+    expect((mockConfigureLight.mock.calls as any[])[0][1].displayName).toBe('Kitchen 3-channel driver Channel 1');
     expect((mockConfigureLight.mock.calls as any[])[0][2].code).toBe('switch_1');
     expect((mockConfigureLight.mock.calls as any[])[0][3].code).toBe('bright_value');
     expect((mockConfigureLight.mock.calls as any[])[0][4].code).toBe('temp_value');
@@ -248,13 +289,57 @@ describe('LightAccessory', () => {
       ],
     } as Partial<TuyaDevice> as TuyaDevice);
 
+    mockPlatform.getDeviceConfig.mockReturnValue({ id: 'test-device-id', splitMultiChannelLightsAsAccessories: true });
     mockDeviceManager.getDevice.mockReturnValue(device);
 
     const accessory = new LightAccessory(mockPlatform, mockAccessory as unknown as PlatformAccessory);
     expect(accessory.checkRequirements()).toBe(true);
   });
 
-  test('keeps a single light when splitMultiChannelLights is disabled for that device', () => {
+  test('uses only switch_led for the master accessory when a multi-channel light is split', () => {
+    const device = new TuyaDevice({
+      id: 'test-device-id',
+      uuid: 'uuid',
+      name: 'Kitchen 3-channel driver',
+      online: true,
+      product_id: 'abc',
+      product_name: '3 channel CCT Driver',
+      model: '3 channel CCT Driver',
+      category: 'dj',
+      schema: [
+        { code: 'switch_led', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'switch_1', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'switch_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'switch_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Boolean, property: {} },
+        { code: 'bright_value', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'bright_value_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'bright_value_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 10, max: 1000, scale: 0, step: 1, unit: '%' } },
+        { code: 'temp_value', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+        { code: 'temp_value_2', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+        { code: 'temp_value_3', mode: TuyaDeviceSchemaMode.READ_WRITE, type: TuyaDeviceSchemaType.Integer, property: { min: 0, max: 1000, scale: 0, step: 1, unit: 'K' } },
+      ],
+      status: [
+        { code: 'switch_led', value: true },
+        { code: 'switch_1', value: true },
+        { code: 'switch_2', value: true },
+        { code: 'switch_3', value: true },
+      ],
+    } as Partial<TuyaDevice> as TuyaDevice);
+
+    mockDeviceManager.getDevice.mockReturnValue(device);
+    mockAccessory.context.channelIndex = 'master';
+    const accessory = new SwitchAccessory(mockPlatform, mockAccessory as unknown as PlatformAccessory);
+    accessory.configureServices();
+
+    const masterSwitchCalls = mockAccessory.addService.mock.calls.filter((call: any[]) => call[2] === 'switch_led');
+    const numberedSwitchCalls = mockAccessory.addService.mock.calls.filter((call: any[]) => /^switch_\d+$/.test(call[2]));
+
+    expect(masterSwitchCalls).toHaveLength(1);
+    expect(masterSwitchCalls[0][1]).toBe('Kitchen 3 channel driver');
+    expect(numberedSwitchCalls).toHaveLength(0);
+  });
+
+  test('keeps a single light when splitMultiChannelLightsAsAccessories is not enabled for that device', () => {
     const device = new TuyaDevice({
       id: 'test-device-id',
       uuid: 'uuid',
@@ -288,7 +373,7 @@ describe('LightAccessory', () => {
       ],
     } as Partial<TuyaDevice> as TuyaDevice);
 
-    mockPlatform.getDeviceConfig.mockReturnValue({ id: 'test-device-id', splitMultiChannelLights: false });
+    mockPlatform.getDeviceConfig.mockReturnValue({ id: 'test-device-id', splitMultiChannelLightsAsAccessories: false });
     mockDeviceManager.getDevice.mockReturnValue(device);
 
     const accessory = new LightAccessory(mockPlatform, mockAccessory as unknown as PlatformAccessory);
@@ -298,7 +383,7 @@ describe('LightAccessory', () => {
     expect((mockConfigureLight.mock.calls as any[])[0][1].displayName).not.toContain('Channel');
   });
 
-  test('creates one light service per numbered channel for larger DP-mode channel counts', () => {
+  test('keeps the upstream single-light behavior for larger DP-mode channel counts unless accessory split mode is enabled', () => {
     const device = new TuyaDevice({
       id: 'test-device-id',
       uuid: 'uuid',
@@ -344,18 +429,13 @@ describe('LightAccessory', () => {
       ],
     } as Partial<TuyaDevice> as TuyaDevice);
 
+    mockPlatform.getDeviceConfig.mockReturnValue({ id: 'test-device-id' });
     mockDeviceManager.getDevice.mockReturnValue(device);
 
     const accessory = new LightAccessory(mockPlatform, mockAccessory as unknown as PlatformAccessory);
     accessory.configureServices();
 
-    expect(mockConfigureLight).toHaveBeenCalledTimes(5);
-    expect((mockConfigureLight.mock.calls as any[]).map((call: any[]) => call[1]?.displayName || call[1]?.UUID)).toEqual([
-      'Kitchen 5-channel driver Channel 1',
-      'Kitchen 5-channel driver Channel 2',
-      'Kitchen 5-channel driver Channel 3',
-      'Kitchen 5-channel driver Channel 4',
-      'Kitchen 5-channel driver Channel 5',
-    ]);
+    expect(mockConfigureLight).toHaveBeenCalledTimes(1);
+    expect((mockConfigureLight.mock.calls as any[])[0][1].displayName).not.toContain('Channel');
   });
 });
